@@ -1,24 +1,19 @@
-name: Publish manuscript
+name: Validate and publish
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "manuscript/**"
-      - "workflow/publication.yaml"
-      - "scripts/publish_to_writings.py"
-      - ".github/workflows/publish.yml"
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: publish-manuscript
+  group: repository-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  publish:
+  validate-and-publish:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -30,7 +25,11 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Validate repository
+        run: python source/scripts/validate_repository.py
+
       - name: Read publication config
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         id: publication
         shell: bash
         run: python source/scripts/publish_to_writings.py config --config source/workflow/publication.yaml >> "$GITHUB_OUTPUT"
