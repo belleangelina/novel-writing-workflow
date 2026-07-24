@@ -1,0 +1,63 @@
+name: Publish manuscript
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "manuscript/**"
+      - "workflow/publication.yaml"
+      - "scripts/publish_to_writings.py"
+      - ".github/workflows/publish.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-manuscript
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          path: source
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Read publication config
+        id: publication
+        shell: bash
+        run: python source/scripts/publish_to_writings.py config --config source/workflow/publication.yaml >> "$GITHUB_OUTPUT"
+
+      - name: Check out writings
+        if: steps.publication.outputs.enabled == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ steps.publication.outputs.target_repository }}
+          ssh-key: ${{ secrets.WRITINGS_DEPLOY_KEY }}
+          path: writings
+
+      - name: Sync published chapters
+        if: steps.publication.outputs.enabled == 'true'
+        run: python source/scripts/publish_to_writings.py sync --source-root source --target-root writings --config source/workflow/publication.yaml
+
+      - name: Commit and push
+        if: steps.publication.outputs.enabled == 'true'
+        working-directory: writings
+        shell: bash
+        run: |
+          git add --all
+          if git diff --cached --quiet; then
+            echo "Published content is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "同步已发布正文"
+          git push origin main
