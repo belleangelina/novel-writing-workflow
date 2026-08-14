@@ -69,6 +69,10 @@ def validate() -> None:
         "outlines/overall.md",
         "style/guide.md",
         "workflow/state.yaml",
+        "workflow/prose-review/README.md",
+        "workflow/prose-review/review-guide.md",
+        "workflow/prose-review/experiments/README.md",
+        "workflow/prose-review/experiments/record-template.md",
     ]
     for name in required:
         if not (ROOT / name).is_file():
